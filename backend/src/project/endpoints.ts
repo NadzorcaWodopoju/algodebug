@@ -1,12 +1,18 @@
 import { Request, Response } from "express";
 import { ObjectId } from "mongodb";
 import { getCollections } from "../app";
+import { Project } from "./model";
 import { validateProject } from "./service";
 
 export const getAllProjects = async (_req: Request, res: Response) => {
     const { projects } = getCollections();
     try {
-        const result = await projects.find({}).toArray();
+        const result = await projects
+            .find({})
+            .filter((project) => {
+                return project.author == _req.user.username || project.author == "AlgoDebug";
+            })
+            .toArray();
 
         if (!result || result.length === 0) {
             res.status(204).send();
@@ -26,7 +32,10 @@ export const getProjectById = async (req: Request, res: Response) => {
 
         try {
             const result = await projects.findOne({ _id: id });
-
+            if ((req.isAuthenticated() && result.author != req.user.username) || result.author != "AlgoDebug") {
+                res.status(403).json({ error: "User is not authorised to open this project" });
+                return;
+            }
             if (!result) {
                 res.status(404).json({ error: "No project found with given id" });
                 return;
